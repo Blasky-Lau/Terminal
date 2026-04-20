@@ -1,0 +1,238 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String                     @id @default(uuid())
+  name             String
+  email            String                     @unique
+  hashedPassword   String
+  role             UserRole
+  terminalCode     String                     @unique
+  position         String?
+  phone            String?
+  isOnline         Boolean?                   @default(false)
+  approvalStatus   UserApprovalStatus         @default(pending)
+  registrationMode UserRegistrationMode       @default(self_service)
+  approvedByUserId String?
+  approvedAt       DateTime?
+  createdByUserId  String?
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
+
+  approvedBy       User?                      @relation("UserApprovals", fields: [approvedByUserId], references: [id])
+  approvedUsers    User[]                     @relation("UserApprovals")
+  createdBy        User?                      @relation("UserCreatedUsers", fields: [createdByUserId], references: [id])
+  createdUsers     User[]                     @relation("UserCreatedUsers")
+  shiftsCreated    Shift[]                    @relation("ShiftCreatedBy")
+  messagesSent     Message[]
+  conversations    ConversationParticipant[]
+  preferenceApprovals PreferenceApproval[]    @relation("PreferenceApprovedBy")
+
+  @@map("users")
+}
+
+model Conversation {
+  id            String                    @id @default(uuid())
+  name          String
+  type          ConversationType          @default(individual)
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  participants  ConversationParticipant[]
+  messages      Message[]
+
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String        @id @default(uuid())
+  conversationId String
+  userId         String
+  joinedAt       DateTime      @default(now())
+
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String        @id @default(uuid())
+  conversationId String
+  senderId       String
+  content        String
+  isRead         Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model Employee {
+  id               String                 @id @default(uuid())
+  terminalCode     String                 @unique
+  firstName        String
+  lastName         String
+  documentType     DocumentType
+  documentNumber   String                 @unique
+  email            String                 @unique
+  phone            String?
+  area             String
+  status           EmployeeStatus         @default(activo)
+  hireDate         DateTime
+  contractType     ContractType
+  weeklyHours      Int
+  workPreference   EmployeeWorkPreference @default(any)
+  unavailableDates Json?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  shifts           Shift[]
+  preferenceRequests PreferenceApproval[]
+
+  @@map("employees")
+}
+
+model Position {
+  id                String            @id @default(uuid())
+  name              String
+  area              String
+  description       String?
+  requiredStaff     Int               @default(1)
+  isMandatory       Boolean           @default(false)
+  isPriority        Boolean           @default(false)
+  priorityStaffCount Int?
+  dualCoverageMode  PositionCoverageMode @default(single_required)
+  isActive          Boolean           @default(true)
+  timeSlots         TimeSlot[]
+  shifts            Shift[]
+
+  @@map("positions")
+}
+
+model TimeSlot {
+  id         String    @id @default(uuid())
+  name       String
+  startTime  String
+  endTime    String
+  positionId String
+
+  position   Position  @relation(fields: [positionId], references: [id])
+  shifts     Shift[]
+
+  @@map("time_slots")
+}
+
+model PreferenceApproval {
+  id             String                    @id @default(uuid())
+  employeeId     String
+  requestedById  String?
+  requestedAt    DateTime                  @default(now())
+  status         PreferenceApprovalStatus  @default(pendiente)
+  reviewedById   String?
+  reviewedAt     DateTime?
+  notes          String?
+  createdAt      DateTime                  @default(now())
+
+  employee       Employee                  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewedBy     User?                     @relation("PreferenceApprovedBy", fields: [reviewedById], references: [id])
+
+  @@map("preference_approvals")
+}
+
+model Shift {
+  id          String       @id @default(uuid())
+  employeeId  String
+  positionId  String
+  timeSlotId  String
+  date        DateTime
+  status      ShiftStatus  @default(borrador)
+  notes       String?
+  createdBy   String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  employee    Employee     @relation(fields: [employeeId], references: [id])
+  position    Position     @relation(fields: [positionId], references: [id])
+  timeSlot    TimeSlot     @relation(fields: [timeSlotId], references: [id])
+  creator     User         @relation("ShiftCreatedBy", fields: [createdBy], references: [id])
+
+  @@map("shifts")
+}
+
+enum UserRole {
+  director
+  supervisor
+  empleado
+}
+
+enum UserApprovalStatus {
+  pending
+  approved
+  rejected
+}
+
+enum DocumentType {
+  CC
+  CE
+  TI
+}
+
+enum EmployeeStatus {
+  activo
+  inactivo
+  vacaciones
+  licencia
+}
+
+enum ContractType {
+  fijo
+  indefinido
+  prestacion
+}
+
+enum ShiftStatus {
+  borrador
+  publicado
+  confirmado
+  rechazado
+}
+
+enum ConversationType {
+  individual
+  grupo
+}
+
+enum UserRegistrationMode {
+  self_service
+  director_created
+}
+
+enum EmployeeWorkPreference {
+  any
+  night_weekdays_only
+}
+
+enum PositionCoverageMode {
+  single_required
+  both_required
+  one_required
+}
+
+enum PreferenceApprovalStatus {
+  pendiente
+  aprobada
+  rechazada
+}
