@@ -74,7 +74,7 @@ export default function NuevoEmpleadoPage() {
 
       if (generatedEmail && generatedPassword) {
         alert(
-          `Empleado y usuario creados correctamente.\n\nCredenciales de acceso:\nUsuario: ${generatedEmail}\nContraseña temporal: ${generatedPassword}\n\nGuárdalas antes de continuar.`
+          `Empleado y usuario creados correctamente.\n\nCredenciales de acceso:\nUsuario: ${generatedEmail}\nContraseña temporal: ${generatedPassword}\n\nImportante:\n- En el primer ingreso, el empleado debe cambiar esta contraseña.\n- Debe aceptar de forma expresa el tratamiento de datos personales (Ley 1581 de 2012).\n\nGuárdalas antes de continuar.`
         )
       }
 

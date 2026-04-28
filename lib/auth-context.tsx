@@ -3,11 +3,26 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react"
 import type { User } from "@/lib/types"
 
+type FirstAccessPayload = {
+  userId: string
+  email: string
+  legalNotice?: {
+    title: string
+    summary: string
+    authority: string
+  }
+}
+
+type LoginResult =
+  | { ok: true; requiresPasswordChange: false }
+  | { ok: true; requiresPasswordChange: true; firstAccess: FirstAccessPayload }
+  | { ok: false }
+
 interface AuthContextType {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
-  login: (email: string, password: string) => Promise<boolean>
+  login: (email: string, password: string) => Promise<LoginResult>
   logout: () => void
   setUser: (user: User | null) => void
 }
@@ -46,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
+  const login = useCallback(async (email: string, password: string): Promise<LoginResult> => {
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -54,15 +69,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ email, password }),
       })
 
-      if (!res.ok) return false
+      if (!res.ok) return { ok: false }
 
       const data = await res.json()
-      if (!data?.user) return false
+
+      if (data?.requiresPasswordChange && data?.firstAccess?.userId && data?.firstAccess?.email) {
+        return {
+          ok: true,
+          requiresPasswordChange: true,
+          firstAccess: data.firstAccess as FirstAccessPayload,
+        }
+      }
+
+      if (!data?.user) return { ok: false }
 
       persistUser(data.user as User)
-      return true
+      return { ok: true, requiresPasswordChange: false }
     } catch {
-      return false
+      return { ok: false }
     }
   }, [persistUser])
 

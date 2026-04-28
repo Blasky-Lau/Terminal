@@ -29,13 +29,31 @@ export default function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setIsSubmitting(true)
-    const success = await login(email, password)
+    const result = await login(email, password)
     setIsSubmitting(false)
-    if (success) {
-      router.push("/dashboard")
-    } else {
+
+    if (!result.ok) {
       toast.error("Credenciales inválidas.")
+      return
     }
+
+    if (result.requiresPasswordChange) {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(
+          "first_access_context",
+          JSON.stringify({
+            userId: result.firstAccess.userId,
+            email: result.firstAccess.email,
+            legalNotice: result.firstAccess.legalNotice,
+            currentPassword: password,
+          })
+        )
+      }
+      router.push("/primer-ingreso")
+      return
+    }
+
+    router.push("/dashboard")
   }
 
   return (

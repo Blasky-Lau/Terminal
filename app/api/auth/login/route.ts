@@ -31,6 +31,22 @@ export async function POST(request: Request) {
       )
     }
 
+    if (user.mustChangePassword) {
+      return NextResponse.json({
+        requiresPasswordChange: true,
+        firstAccess: {
+          userId: user.id,
+          email: user.email,
+          legalNotice: {
+            title: "Tratamiento de datos personales (Ley 1581 de 2012)",
+            summary:
+              "Debes autorizar de forma previa y expresa el tratamiento de datos personales, conocer su finalidad y poder ejercer derechos de acceso, rectificación o eliminación conforme a la Ley 1581 de 2012.",
+            authority: "Superintendencia de Industria y Comercio (SIC)",
+          },
+        },
+      })
+    }
+
     return NextResponse.json({
       user: {
         id: user.id,

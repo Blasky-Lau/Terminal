@@ -146,6 +146,8 @@ export async function POST(request: Request) {
           approvalStatus: "approved",
           registrationMode: "director_created",
           approvedAt: new Date(),
+          mustChangePassword: true,
+          dataPolicyVersion: "ley_1581_2012_v1",
         },
       })
 
@@ -160,10 +162,17 @@ export async function POST(request: Request) {
           email: result.user.email,
           terminalCode: result.user.terminalCode,
           role: result.user.role,
+          mustChangePassword: result.user.mustChangePassword,
         },
         credentials: {
           email: result.user.email,
           temporaryPassword: tempPassword,
+        },
+        legalNotice: {
+          title: "Tratamiento de datos personales (Ley 1581 de 2012)",
+          summary:
+            "Antes del primer uso, el empleado debe aceptar de forma expresa la política de tratamiento de datos, conocer la finalidad del uso de la información y ejercer sus derechos de acceso, rectificación y eliminación cuando aplique.",
+          authority: "Superintendencia de Industria y Comercio (SIC)",
         },
       },
       { status: 201 }

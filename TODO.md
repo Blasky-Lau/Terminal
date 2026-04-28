@@ -24,3 +24,15 @@
 - [x] 4. Conectar UI `app/(dashboard)/horarios/page.tsx` al nuevo endpoint
 - [x] 5. Reemplazar consumo mock por datos reales en la vista de horarios
 - [ ] 6. Validar build/tipos y comportamiento general
+
+## TODO - Primer ingreso + Habeas Data (Ley 1581 de 2012)
+
+- [x] 1. Actualizar `prisma/schema.prisma` (campos `mustChangePassword`, `dataPolicyAcceptedAt`, `dataPolicyVersion`)
+- [x] 2. Actualizar `app/api/employees/route.ts` para marcar primer ingreso obligatorio y devolver mensaje legal
+- [x] 3. Actualizar `app/api/auth/login/route.ts` para responder `requiresPasswordChange`
+- [x] 4. Crear `app/api/auth/first-access/route.ts` para cambio obligatorio de contraseña + aceptación de política
+- [x] 5. Actualizar `lib/auth-context.tsx` para soportar flujo de primer ingreso
+- [x] 6. Actualizar `app/login/page.tsx` para redirigir a `/primer-ingreso` cuando aplique
+- [x] 7. Crear `app/primer-ingreso/page.tsx` con texto legal + checkbox obligatorio + cambio de contraseña
+- [x] 8. Actualizar `app/(dashboard)/empleados/nuevo/page.tsx` con aviso de primer ingreso
+- [ ] 9. Ejecutar validación de tipos/build
