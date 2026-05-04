@@ -13,6 +13,19 @@ export async function POST(request: Request) {
     const normalizedEmail = String(email).trim().toLowerCase()
     const user = await prisma.user.findUnique({
       where: { email: normalizedEmail },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        terminalCode: true,
+        position: true,
+        phone: true,
+        isOnline: true,
+        hashedPassword: true,
+        approvalStatus: true,
+        mustChangePassword: true,
+      },
     })
 
     if (!user?.hashedPassword) {

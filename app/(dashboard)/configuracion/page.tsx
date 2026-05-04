@@ -22,11 +22,16 @@ const roleLabels: Record<string, string> = {
 export default function ConfiguracionPage() {
   const { user, setUser } = useAuth()
   const [isSaving, setIsSaving] = useState(false)
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
   const [formData, setFormData] = useState({
     name: user?.name ?? "",
     email: user?.email ?? "",
     phone: user?.phone ?? "",
     terminalCode: user?.terminalCode ?? "",
+  })
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
   })
 
   if (!user) return null
@@ -196,19 +201,70 @@ export default function ConfiguracionPage() {
               <CardDescription>Actualiza tu contrasena</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
+              <div className="rounded-md border p-3 text-sm text-muted-foreground">
+                Conforme a la Ley 1581 de 2012, el tratamiento de datos personales requiere autorización previa,
+                expresa e informada. Al cambiar tu contraseña, mantienes vigente tu aceptación de la política de
+                tratamiento de datos personales de la organización.
+              </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
                   <Label>Contrasena actual</Label>
-                  <Input type="password" placeholder="Ingresa tu contrasena actual" />
+                  <Input
+                    type="password"
+                    placeholder="Ingresa tu contrasena actual"
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
+                  />
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label>Nueva contrasena</Label>
-                  <Input type="password" placeholder="Ingresa nueva contrasena" />
+                  <Input
+                    type="password"
+                    placeholder="Ingresa nueva contrasena"
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
+                  />
                 </div>
               </div>
               <div className="flex justify-end">
-                <Button variant="outline" onClick={() => toast.success("Contrasena actualizada")}>
-                  Cambiar contrasena
+                <Button
+                  variant="outline"
+                  disabled={isChangingPassword}
+                  onClick={async () => {
+                    if (!passwordForm.currentPassword || !passwordForm.newPassword) {
+                      toast.error("Completa los campos de contraseña")
+                      return
+                    }
+
+                    setIsChangingPassword(true)
+                    try {
+                      const res = await fetch("/api/users/change-password", {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          userId: user.id,
+                          currentPassword: passwordForm.currentPassword,
+                          newPassword: passwordForm.newPassword,
+                        }),
+                      })
+
+                      const data = await res.json()
+
+                      if (!res.ok) {
+                        toast.error(data?.error ?? "No se pudo actualizar la contraseña")
+                        return
+                      }
+
+                      setPasswordForm({ currentPassword: "", newPassword: "" })
+                      toast.success("Contrasena actualizada correctamente")
+                    } catch {
+                      toast.error("Error de red al actualizar contraseña")
+                    } finally {
+                      setIsChangingPassword(false)
+                    }
+                  }}
+                >
+                  {isChangingPassword ? "Actualizando..." : "Cambiar contrasena"}
                 </Button>
               </div>
             </CardContent>

@@ -1,38 +1,6 @@
-# TODO - Implementación solicitada (registro, puestos, empleados, chat)
-
-- [x] 1. Actualizar `prisma/schema.prisma` con nuevos campos/enums:
-  - Registro de usuario en dos modos (self_service / director_created)
-  - Reglas avanzadas de puestos (obligatorio, prioridad, cantidad prioridad, modo cobertura dual)
-  - Reglas avanzadas de puestos (obligatorio, prioridad, cantidad prioridad, modo cobertura dual)
-  - Restricciones de disponibilidad en empleados (preferencia laboral y fechas no disponibles)
-- [x] 2. Actualizar API de registro `app/api/users/register/route.ts`
-- [x] 3. Actualizar UI de registro `app/register/page.tsx`
-- [x] 4. Actualizar API de puestos `app/api/positions/route.ts`
-- [x] 5. Actualizar UI de puestos `app/(dashboard)/puestos/page.tsx`
-- [x] 6. Actualizar API de empleados `app/api/employees/route.ts`
-- [x] 7. Actualizar UI de nuevo empleado `app/(dashboard)/empleados/nuevo/page.tsx`
-- [x] 8. Agregar endpoint de usuarios activos para chat `app/api/chat/users/route.ts`
-- [x] 9. Actualizar conversaciones chat `app/api/chat/conversations/route.ts` (crear/reusar conversación individual)
-- [x] 10. Actualizar UI de chat `app/(dashboard)/chat/page.tsx` para mostrar todos los usuarios activos e iniciar chat directo
-- [ ] 11. Ejecutar validación de tipos/build
-
-## TODO - Generación de horarios con puestos y turnos
-
-- [x] 1. Revisar y ajustar endpoints para usar datos reales (puestos/turnos/empleados)
-- [x] 2. Crear endpoint de generación automática semanal de turnos (MVP)
-- [x] 3. Implementar reglas base de asignación por `requiredStaff` y `dualCoverageMode`
-- [x] 4. Conectar UI `app/(dashboard)/horarios/page.tsx` al nuevo endpoint
-- [x] 5. Reemplazar consumo mock por datos reales en la vista de horarios
-- [ ] 6. Validar build/tipos y comportamiento general
-
-## TODO - Primer ingreso + Habeas Data (Ley 1581 de 2012)
-
-- [x] 1. Actualizar `prisma/schema.prisma` (campos `mustChangePassword`, `dataPolicyAcceptedAt`, `dataPolicyVersion`)
-- [x] 2. Actualizar `app/api/employees/route.ts` para marcar primer ingreso obligatorio y devolver mensaje legal
-- [x] 3. Actualizar `app/api/auth/login/route.ts` para responder `requiresPasswordChange`
-- [x] 4. Crear `app/api/auth/first-access/route.ts` para cambio obligatorio de contraseña + aceptación de política
-- [x] 5. Actualizar `lib/auth-context.tsx` para soportar flujo de primer ingreso
-- [x] 6. Actualizar `app/login/page.tsx` para redirigir a `/primer-ingreso` cuando aplique
-- [x] 7. Crear `app/primer-ingreso/page.tsx` con texto legal + checkbox obligatorio + cambio de contraseña
-- [x] 8. Actualizar `app/(dashboard)/empleados/nuevo/page.tsx` con aviso de primer ingreso
-- [ ] 9. Ejecutar validación de tipos/build
+- [x] Extender API de turnos para filtrar por rango de fechas (weekStart/weekEnd)
+- [x] Actualizar pantalla de horarios para navegar semanas (anterior/siguiente/actual)
+- [x] Generar horario para la semana seleccionada (enviar weekStart al endpoint generate)
+- [x] Mostrar turnos de la semana seleccionada y permitir ver semanas anteriores
+- [ ] Ajustar regla: generar en semana visualizada y validar semana anterior publicada
+- [ ] Probar flujo básico de navegación y generación de horarios

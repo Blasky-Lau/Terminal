@@ -9,6 +9,9 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       where: { id },
       include: {
         shifts: {
+          where: {
+            status: "confirmado",
+          },
           include: {
             position: true,
             timeSlot: true,

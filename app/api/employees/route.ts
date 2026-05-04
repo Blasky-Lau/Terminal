@@ -77,11 +77,12 @@ export async function POST(request: Request) {
       area = position.area
     }
 
+    const normalizedEmail = email.trim().toLowerCase()
     const employeeCode = terminalCode?.trim() || `EMP-${Date.now()}`
 
     const existingEmployee = await prisma.employee.findFirst({
       where: {
-        OR: [{ documentNumber }, { email }, { terminalCode: employeeCode }],
+        OR: [{ documentNumber }, { email: normalizedEmail }, { terminalCode: employeeCode }],
       },
       select: { id: true },
     })
@@ -92,7 +93,7 @@ export async function POST(request: Request) {
 
     const existingUser = await prisma.user.findFirst({
       where: {
-        OR: [{ email }, { terminalCode: employeeCode }],
+        OR: [{ email: normalizedEmail }, { terminalCode: employeeCode }],
       },
       select: { id: true },
     })
@@ -123,7 +124,7 @@ export async function POST(request: Request) {
           lastName,
           documentType,
           documentNumber,
-          email,
+          email: normalizedEmail,
           phone,
           area,
           contractType,
@@ -137,7 +138,7 @@ export async function POST(request: Request) {
       const user = await tx.user.create({
         data: {
           name: `${firstName} ${lastName}`.trim(),
-          email,
+          email: normalizedEmail,
           hashedPassword,
           role: "empleado",
           terminalCode: employeeCode,
@@ -162,7 +163,7 @@ export async function POST(request: Request) {
           email: result.user.email,
           terminalCode: result.user.terminalCode,
           role: result.user.role,
-          mustChangePassword: result.user.mustChangePassword,
+          mustChangePassword: true,
         },
         credentials: {
           email: result.user.email,

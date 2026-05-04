@@ -1,0 +1,32 @@
+PASO 1
+cd /var/www/es2-lab-app && rm -rf node_modules package-lock.json && npm install --legacy-peer-deps
+
+PASO 2
+cd /var/www/es2-lab-app && npm run build
+
+PASO 3
+pm2 delete es2-lab-app || true
+
+PASO 4
+cd /var/www/es2-lab-app && pm2 start "npm run start -- -p 3000" --name es2-lab-app
+
+PASO 5
+pm2 save && pm2 status
+
+PASO 6
+curl -I http://127.0.0.1:3000
+
+PASO 7
+sudo nginx -t && sudo systemctl reload nginx
+
+PASO 8
+curl -I http://localhost
+
+PASO 9 (reemplaza por tu dominio real)
+curl -I http://TU_SUBDOMINIO.duckdns.org
+
+PASO 10 (cuando DuckDNS ya apunte a la IP EC2)
+sudo certbot --nginx -d TU_SUBDOMINIO.duckdns.org
+
+PASO 11
+sudo certbot renew --dry-run

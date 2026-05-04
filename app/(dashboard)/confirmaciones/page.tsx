@@ -1,8 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { mockShifts } from "@/lib/data/mock-shifts"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { StatusBadge } from "@/components/status-badge"
@@ -19,21 +18,99 @@ import { toast } from "sonner"
 import type { Shift } from "@/lib/types"
 
 function EmployeeConfirmations() {
-  const myShifts = mockShifts.filter((s) => s.employeeId === "emp-001")
-  const pending = myShifts.filter((s) => s.status === "publicado")
-  const confirmed = myShifts.filter((s) => s.status === "confirmado")
-  const rejected = myShifts.filter((s) => s.status === "rechazado")
+  const { user } = useAuth()
+  const [myShifts, setMyShifts] = useState<Shift[]>([])
+  const [loading, setLoading] = useState(true)
   const [rejectDialog, setRejectDialog] = useState<Shift | null>(null)
   const [rejectReason, setRejectReason] = useState("")
 
-  function handleConfirm(shiftId: string) {
-    toast.success("Turno confirmado correctamente")
+  const pending = useMemo(() => myShifts.filter((s) => s.status === "publicado"), [myShifts])
+  const confirmed = useMemo(() => myShifts.filter((s) => s.status === "confirmado"), [myShifts])
+  const rejected = useMemo(() => myShifts.filter((s) => s.status === "rechazado"), [myShifts])
+
+  async function loadMyShifts() {
+    try {
+      const res = await fetch("/api/shifts", { cache: "no-store" })
+      if (!res.ok) {
+        toast.error("No se pudieron cargar tus turnos")
+        return
+      }
+
+      const data = await res.json()
+      const shifts = (Array.isArray(data) ? data : []) as any[]
+      const filtered = shifts
+        .filter((s) => s.employee?.email === user?.email && s.status !== "borrador")
+        .map((s) => ({
+          id: s.id,
+          employeeId: s.employeeId,
+          employeeName: `${s.employee?.firstName || ""} ${s.employee?.lastName || ""}`.trim() || "Sin empleado",
+          positionId: s.positionId,
+          positionName: s.position?.name || "Sin puesto",
+          date: new Date(s.date).toISOString().slice(0, 10),
+          timeSlotId: s.timeSlotId,
+          startTime: s.timeSlot?.startTime || "00:00",
+          endTime: s.timeSlot?.endTime || "00:00",
+          status: s.status,
+          notes: s.notes || undefined,
+          createdBy: s.createdBy || "system",
+          createdAt: s.createdAt || new Date().toISOString(),
+        })) as Shift[]
+
+      setMyShifts(filtered)
+    } catch {
+      toast.error("Error cargando confirmaciones")
+    } finally {
+      setLoading(false)
+    }
   }
 
-  function handleReject() {
-    toast.success("Turno rechazado. Se notifico al supervisor.")
-    setRejectDialog(null)
-    setRejectReason("")
+  useEffect(() => {
+    loadMyShifts()
+  }, [])
+
+  async function handleConfirm(shiftId: string) {
+    try {
+      const res = await fetch(`/api/shifts/${shiftId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "confirmado", actorEmployeeId: shift.employeeId }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data?.error || "No se pudo confirmar el turno")
+        return
+      }
+      toast.success("Turno confirmado correctamente")
+      await loadMyShifts()
+    } catch {
+      toast.error("Error confirmando turno")
+    }
+  }
+
+  async function handleReject() {
+    if (!rejectDialog) return
+    try {
+      const res = await fetch(`/api/shifts/${rejectDialog.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "rechazado",
+          notes: rejectReason || "Rechazado por empleado",
+          actorEmployeeId: rejectDialog.employeeId,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data?.error || "No se pudo rechazar el turno")
+        return
+      }
+      toast.success("Turno rechazado. Se notifico al supervisor.")
+      setRejectDialog(null)
+      setRejectReason("")
+      await loadMyShifts()
+    } catch {
+      toast.error("Error rechazando turno")
+    }
   }
 
   return (
@@ -129,7 +206,9 @@ function EmployeeConfirmations() {
           <CardDescription>Vista completa de la semana.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
-          {myShifts.length === 0 ? (
+          {loading ? (
+            <p className="py-8 text-center text-muted-foreground">Cargando turnos...</p>
+          ) : myShifts.length === 0 ? (
             <p className="py-8 text-center text-muted-foreground">No tienes turnos asignados esta semana.</p>
           ) : (
             myShifts.map((shift) => (
@@ -183,7 +262,39 @@ function EmployeeConfirmations() {
 }
 
 function SupervisorConfirmations() {
-  const allShifts = mockShifts
+  const [allShifts, setAllShifts] = useState<Shift[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadAllShifts() {
+      try {
+        const res = await fetch("/api/shifts", { cache: "no-store" })
+        if (!res.ok) return
+        const data = await res.json()
+        const mapped = (Array.isArray(data) ? data : []).map((s: any) => ({
+          id: s.id,
+          employeeId: s.employeeId,
+          employeeName: `${s.employee?.firstName || ""} ${s.employee?.lastName || ""}`.trim() || "Sin empleado",
+          positionId: s.positionId,
+          positionName: s.position?.name || "Sin puesto",
+          date: new Date(s.date).toISOString().slice(0, 10),
+          timeSlotId: s.timeSlotId,
+          startTime: s.timeSlot?.startTime || "00:00",
+          endTime: s.timeSlot?.endTime || "00:00",
+          status: s.status,
+          notes: s.notes || undefined,
+          createdBy: s.createdBy || "system",
+          createdAt: s.createdAt || new Date().toISOString(),
+        })) as Shift[]
+        setAllShifts(mapped)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadAllShifts()
+  }, [])
+
   const confirmed = allShifts.filter((s) => s.status === "confirmado")
   const pending = allShifts.filter((s) => s.status === "publicado")
   const rejected = allShifts.filter((s) => s.status === "rechazado")
@@ -264,7 +375,9 @@ function SupervisorConfirmations() {
           <CardTitle className="text-base">Pendientes de Confirmacion</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
-          {pending.length === 0 ? (
+          {loading ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">Cargando turnos...</p>
+          ) : pending.length === 0 ? (
             <p className="py-4 text-center text-sm text-muted-foreground">Todos los turnos han sido respondidos.</p>
           ) : (
             pending.map((shift) => (

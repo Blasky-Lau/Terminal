@@ -29,7 +29,8 @@ export default function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setIsSubmitting(true)
-    const result = await login(email, password)
+    const normalizedEmail = email.trim().toLowerCase()
+    const result = await login(normalizedEmail, password)
     setIsSubmitting(false)
 
     if (!result.ok) {

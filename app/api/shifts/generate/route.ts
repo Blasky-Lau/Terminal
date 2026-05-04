@@ -4,18 +4,19 @@ import { prisma } from "@/lib/prisma"
 type ShiftStatusInput = "borrador" | "publicado"
 
 function getWeekDates(baseDate?: string): Date[] {
-  const now = baseDate ? new Date(baseDate) : new Date()
+  const now = baseDate ? new Date(`${baseDate}T12:00:00`) : new Date()
   const day = now.getDay() // 0=domingo, 1=lunes...
   const diffToMonday = day === 0 ? -6 : 1 - day
 
   const monday = new Date(now)
-  monday.setHours(0, 0, 0, 0)
+  monday.setHours(12, 0, 0, 0)
   monday.setDate(now.getDate() + diffToMonday)
 
   const dates: Date[] = []
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday)
     d.setDate(monday.getDate() + i)
+    d.setHours(12, 0, 0, 0)
     dates.push(d)
   }
   return dates
@@ -68,8 +69,15 @@ export async function POST(request: Request) {
     }
 
     const weekDates = getWeekDates(body.weekStart)
-    const weekStart = weekDates[0]
-    const weekEnd = weekDates[6]
+    const weekStart = new Date(weekDates[0])
+    const weekEnd = new Date(weekDates[6])
+
+    const weekStartDb = new Date(weekStart)
+    weekStartDb.setHours(0, 0, 0, 0)
+
+    const weekEndDb = new Date(weekEnd)
+    weekEndDb.setHours(23, 59, 59, 999)
+
     const unavailableByEmployee = new Map<string, Set<string>>()
 
     for (const emp of employees) {
@@ -170,8 +178,8 @@ export async function POST(request: Request) {
       prisma.shift.deleteMany({
         where: {
           date: {
-            gte: weekStart,
-            lte: weekEnd,
+            gte: weekStartDb,
+            lte: weekEndDb,
           },
         },
       }),
@@ -184,8 +192,8 @@ export async function POST(request: Request) {
       message: "Horarios generados correctamente",
       generated: toCreate.length,
       deletedPrevious: deleteResult.count,
-      weekStart,
-      weekEnd,
+      weekStart: weekStartDb,
+      weekEnd: weekEndDb,
       status,
       guaranteedDayOffEmployees: employees.length,
       weeklyDayOffByEmployee: Object.fromEntries(weeklyDayOffByEmployee),

@@ -6,6 +6,7 @@ type PatchShiftBody = {
   employeeId?: string
   timeSlotId?: string
   notes?: string
+  actorEmployeeId?: string
 }
 
 export async function PATCH(
@@ -42,6 +43,29 @@ export async function PATCH(
       })
       if (!timeSlot) {
         return NextResponse.json({ error: "Franja horaria inválida" }, { status: 400 })
+      }
+    }
+
+    if ((body.status === "confirmado" || body.status === "rechazado")) {
+      if (!body.actorEmployeeId) {
+        return NextResponse.json(
+          { error: "Falta actorEmployeeId para confirmar/rechazar turno" },
+          { status: 400 }
+        )
+      }
+
+      if (body.actorEmployeeId !== existing.employeeId) {
+        return NextResponse.json(
+          { error: "Solo el empleado asignado puede confirmar o rechazar este turno" },
+          { status: 403 }
+        )
+      }
+
+      if (existing.status !== "publicado") {
+        return NextResponse.json(
+          { error: "Solo se pueden confirmar/rechazar turnos en estado publicado" },
+          { status: 400 }
+        )
       }
     }
 

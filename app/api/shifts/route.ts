@@ -1,9 +1,24 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url)
+    const weekStartParam = searchParams.get('weekStart')
+    const weekEndParam = searchParams.get('weekEnd')
+
+    const where =
+      weekStartParam && weekEndParam
+        ? {
+            date: {
+              gte: new Date(weekStartParam),
+              lte: new Date(weekEndParam),
+            },
+          }
+        : undefined
+
     const shifts = await prisma.shift.findMany({
+      where,
       include: {
         employee: true,
         position: true,

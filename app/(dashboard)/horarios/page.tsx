@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useMemo, useEffect, useCallback } from "react"
-import { getWeekDates } from "@/lib/data/mock-shifts"
 import { mockEmployees } from "@/lib/data/mock-employees"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -34,6 +33,24 @@ const STATUS_COLORS: Record<string, string> = {
   rechazado: "bg-red-100 border-red-300 text-red-800",
 }
 
+function getWeekDates(baseDate?: Date): string[] {
+  const now = baseDate ? new Date(baseDate) : new Date()
+  const day = now.getDay()
+  const diffToMonday = day === 0 ? -6 : 1 - day
+
+  const monday = new Date(now)
+  monday.setHours(0, 0, 0, 0)
+  monday.setDate(now.getDate() + diffToMonday)
+
+  const dates: string[] = []
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    dates.push(d.toISOString().slice(0, 10))
+  }
+  return dates
+}
+
 export default function HorariosPage() {
   const [scheduleStatus, setScheduleStatus] = useState<"borrador" | "publicado">("publicado")
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null)
@@ -44,7 +61,17 @@ export default function HorariosPage() {
   const [selectedPositionId, setSelectedPositionId] = useState<string>("")
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("")
   const [selectedTimeSlotId, setSelectedTimeSlotId] = useState<string>("")
-  const weekDates = useMemo(() => getWeekDates(), [])
+  const [weekOffset, setWeekOffset] = useState(0)
+
+  const weekDates = useMemo(() => {
+    const base = new Date()
+    base.setDate(base.getDate() + weekOffset * 7)
+    return getWeekDates(base)
+  }, [weekOffset])
+
+  const weekStart = weekDates[0]
+  const weekEnd = weekDates[6]
+  const isCurrentWeek = weekOffset === 0
 
   const mapShift = useCallback(
     (s: any): Shift => ({
@@ -67,7 +94,10 @@ export default function HorariosPage() {
 
   const loadData = useCallback(async () => {
     try {
-      const [positionsRes, shiftsRes] = await Promise.all([fetch("/api/positions"), fetch("/api/shifts")])
+      const [positionsRes, shiftsRes] = await Promise.all([
+        fetch("/api/positions"),
+        fetch(`/api/shifts?weekStart=${weekStart}&weekEnd=${weekEnd}`),
+      ])
 
       if (positionsRes.ok) {
         const posData = await positionsRes.json()
@@ -81,7 +111,7 @@ export default function HorariosPage() {
     } catch {
       toast.error("No se pudieron cargar puestos y turnos")
     }
-  }, [mapShift])
+  }, [mapShift, weekEnd, weekStart])
 
   useEffect(() => {
     loadData()
@@ -104,7 +134,7 @@ export default function HorariosPage() {
       const res = await fetch("/api/shifts/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "borrador" }),
+        body: JSON.stringify({ status: "borrador", weekStart }),
       })
 
       const data = await res.json()
@@ -135,20 +165,60 @@ export default function HorariosPage() {
     toast.success("Horario publicado. Los empleados recibiran notificacion.")
   }
 
+  async function handlePublishAll() {
+    try {
+      const draftsToPublish = shifts.filter((s) => s.status === "borrador")
+
+      if (draftsToPublish.length === 0) {
+        toast.success("No hay turnos en borrador para publicar.")
+        return
+      }
+
+      const results = await Promise.all(
+        draftsToPublish.map((shift) =>
+          fetch(`/api/shifts/${shift.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: "publicado" }),
+          })
+        )
+      )
+
+      const failed = results.filter((r) => !r.ok).length
+      const published = draftsToPublish.length - failed
+
+      if (published > 0) {
+        toast.success(`Se publicaron ${published} turnos para confirmación de empleados.`)
+      }
+
+      if (failed > 0) {
+        toast.error(`${failed} turnos no pudieron publicarse.`)
+      }
+
+      setScheduleStatus("publicado")
+      await loadData()
+    } catch {
+      toast.error("Error publicando todos los turnos")
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Horarios Semanales</h1>
           <p className="text-muted-foreground">
-            Semana del {new Date(weekDates[0]).toLocaleDateString("es-CO", { day: "numeric", month: "long" })} al{" "}
-            {new Date(weekDates[6]).toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })}
+            Semana del {new Date(weekStart).toLocaleDateString("es-CO", { day: "numeric", month: "long" })} al{" "}
+            {new Date(weekEnd).toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })}
           </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleGenerate}>
             <Wand2 className="mr-2 h-4 w-4" />
             Generar Automatico
+          </Button>
+          <Button variant="secondary" onClick={handlePublishAll}>
+            Publicar todo
           </Button>
           {scheduleStatus === "borrador" && (
             <Button onClick={handlePublish}>
@@ -161,19 +231,28 @@ export default function HorariosPage() {
 
       {/* Navigation */}
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" disabled>
+        <Button variant="ghost" size="sm" onClick={() => setWeekOffset((prev) => prev - 1)}>
           <ChevronLeft className="mr-1 h-4 w-4" />
           Semana anterior
         </Button>
         <div className="flex items-center gap-2">
           <CalendarDays className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">Semana Actual</span>
+          <span className="text-sm font-medium">
+            {isCurrentWeek ? "Semana actual" : `Semana ${weekOffset > 0 ? "siguiente" : "anterior"}`}
+          </span>
           <StatusBadge status={scheduleStatus} />
         </div>
-        <Button variant="ghost" size="sm" disabled>
-          Semana siguiente
-          <ChevronRight className="ml-1 h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          {!isCurrentWeek && (
+            <Button variant="ghost" size="sm" onClick={() => setWeekOffset(0)}>
+              Hoy
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={() => setWeekOffset((prev) => prev + 1)}>
+            Semana siguiente
+            <ChevronRight className="ml-1 h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Schedule Grid */}
@@ -289,27 +368,26 @@ export default function HorariosPage() {
                   onClick={async () => {
                     if (!selectedShift) return
                     try {
-                      const nextStatus =
-                        selectedShift.status === "borrador" ? "publicado" : "borrador"
                       const res = await fetch(`/api/shifts/${selectedShift.id}`, {
                         method: "PATCH",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ status: nextStatus }),
+                        body: JSON.stringify({ status: "publicado" }),
                       })
                       const data = await res.json()
                       if (!res.ok) {
-                        toast.error(data?.error || "No se pudo actualizar el turno")
+                        toast.error(data?.error || "No se pudo publicar el turno")
                         return
                       }
-                      toast.success("Turno actualizado correctamente")
+                      toast.success("Turno publicado para confirmación del empleado")
                       setSelectedShift(null)
+                      setScheduleStatus("publicado")
                       await loadData()
                     } catch {
-                      toast.error("Error actualizando turno")
+                      toast.error("Error publicando turno")
                     }
                   }}
                 >
-                  Editar Turno
+                  Publicar
                 </Button>
               </div>
             </div>
